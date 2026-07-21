@@ -1,0 +1,5 @@
+aiogram==3.*
+gspread
+google-auth
+python-dotenv
+pydantic
