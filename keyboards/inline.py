@@ -1,10 +1,28 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def make_inline_markup(item: dict) -> InlineKeyboardMarkup:
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎒 Сумка", callback_data=f"bag:{item.get('bag','')}")],
-        [InlineKeyboardButton(text="🎥 Видео", callback_data=f"video:{item.get('id','')}")],
-        [InlineKeyboardButton(text="📄 Документ", callback_data=f"doc:{item.get('id','')}")]
-    ])
-    return kb
+def make_inline_markup(item: dict, is_admin: bool = False) -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text="🎥 Видео",
+                callback_data=f"video:{item['id']}"
+            ),
+            InlineKeyboardButton(
+                text="📄 Акт",
+                callback_data=f"doc:{item['id']}"
+            )
+        ]
+    ]
+
+    if is_admin:
+        keyboard.append([
+            InlineKeyboardButton(
+                text="⚙️ Управление",
+                callback_data=f"manage:{item['id']}"
+            )
+        ])
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=keyboard
+    )
