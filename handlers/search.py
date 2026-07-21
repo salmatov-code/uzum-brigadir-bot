@@ -56,12 +56,12 @@ async def search_handler(message: Message, cache):
 
     # Красивый статус
     status = STATUS.get(
-        str(item["status"]).lower(),
-        item["status"]
+        str(item.get("status", "")).lower(),
+        item.get("status", "")
     )
 
     # Добавляем "+" к телефону
-    phone = str(item["phone"]).strip()
+    phone = str(item.get("phone", "")).strip()
     if phone and not phone.startswith("+"):
         phone = "+" + phone
 
@@ -72,25 +72,51 @@ async def search_handler(message: Message, cache):
     video = "✅" if has_video else "❌"
     act = "✅" if has_act else "❌"
 
+    # detect admin status for current user — minimal heuristic based on cache._access contents
+    is_admin = False
+    try:
+        uid = str(message.from_user.id)
+        access_list = getattr(cache, "_access", [])
+        for row in access_list:
+            if isinstance(row, dict):
+                # check if this row contains the user id (as key or value)
+                contains_id = any(str(k).strip() == uid or str(v).strip() == uid for k, v in row.items())
+                if not contains_id:
+                    continue
+                # if the row contains admin-like marker in any value -> admin
+                for k, v in row.items():
+                    try:
+                        if isinstance(v, str) and v.strip().lower() in ("admin", "админ", "administrator"):
+                            is_admin = True
+                            break
+                    except Exception:
+                        continue
+                if is_admin:
+                    break
+            else:
+                # row is primitive, unlikely to contain role info
+                continue
+    except Exception:
+        is_admin = False
+
     card = (
         "👤 <b>Карточка курьера</b>\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🆔 <b>ID:</b> {item['id']}    {status}\n\n"
-        f"👤 {item['name']}\n"
-        f"📞 {phone}\n\n"
-        f"🚗 {item['transport']}\n"
-        f"🤝 {item['partner']}\n"
-        f"🌍 {item['city']}\n"
-        f"🎒 {item['bag']}\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📂 <b>Материалы</b>\n\n"
-        f"🎥 Видео {video}    📄 Акт {act}"
+        f"🆔 <b>{item.get('id')}</b> • {status}\n\n"
+        f"👤 {item.get('name')}\n"
+        f"📞 {phone}\n"
+        f"🚗 {item.get('transport')}\n"
+        f"🤝 {item.get('partner')}\n"
+        f"🌍 {item.get('city')}\n"
+        f"🎒 {item.get('bag')}\n\n"
+        "📂 <b>Материалы</b>\n"
+        f"🎥 Видео {video}\n"
+        f"📄 Акт {act}"
     )
 
     await message.answer(
         card,
         parse_mode="HTML",
-        reply_markup=make_inline_markup(item)
+        reply_markup=make_inline_markup(item, is_admin=is_admin)
     )
 
 
