@@ -33,12 +33,14 @@ class Cache:
         q = query.strip().lower()
         for r in self._data:
             # try a few common column names
-            if key == 'id' and str(r.get('ID','')).lower() == q:
-                return self._normalize(r)
-            if key == 'phone' and q in str(r.get('Телефон','')).lower():
-                return self._normalize(r)
-            if key == 'bag' and q in str(r.get('Номер сумки','')).lower():
-                return self._normalize(r)
+            if key == "id" and str(r.get("courier_id", "")).strip().lower() == q:
+    return self._normalize(r)
+
+if key == "phone" and q in str(r.get("Номер телефона", "")).lower():
+    return self._normalize(r)
+
+if key == "bag" and q in str(r.get("Сумка", "")).lower():
+    return self._normalize(r)
         return None
 
     def is_allowed(self, tg_id: int) -> bool:
