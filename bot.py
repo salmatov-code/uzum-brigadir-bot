@@ -13,6 +13,7 @@ from handlers.start import register_start_handlers
 from handlers.search import register_search_handlers
 from handlers.callbacks import register_callback_handlers
 from handlers.admin import register_admin_handlers
+from handlers.admin_fsm import register_admin_fsm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +37,9 @@ async def main():
     register_search_handlers(dp, cache)
     register_callback_handlers(dp, sheets, cache)
     register_admin_handlers(dp, cache, sheets)
+    register_admin_handlers(dp, cache, sheets)
+    register_admin_fsm(dp, sheets, cache)
+    register_callback_handlers(dp, sheets, cache)
 
     # Keep Alive (Render)
     Thread(target=run, daemon=True).start()
