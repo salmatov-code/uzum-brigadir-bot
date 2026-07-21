@@ -65,14 +65,14 @@ class Cache:
                         return True
         return False
 
-    def _normalize(self, row: Dict[str, Any]):
-        return {
-            'id': row.get('ID') or row.get('Id') or row.get('id'),
-            'name': f"{row.get('Имя','')} {row.get('Фамилия','')}",
-            'phone': row.get('Телефон',''),
-            'transport': row.get('Тип транспорта',''),
-            'partner': row.get('Партнёр','') or row.get('Партнер',''),
-            'city': row.get('Город',''),
-            'bag': row.get('Номер сумки','') or row.get('Сумка',''),
-            'status': row.get('Статус','')
-        }
+    def _normalize(self, row):
+    return {
+        "id": row.get("courier_id", ""),
+        "name": f"{row.get('Имя', '')} {row.get('Фамилия', '')}".strip(),
+        "phone": row.get("Номер телефона", ""),
+        "transport": row.get("Тип передвижения", ""),
+        "partner": row.get("Лог партнеры", ""),
+        "city": row.get("Город", ""),
+        "bag": row.get("Сумка", ""),
+        "status": row.get("Статус курьера", ""),
+    }
