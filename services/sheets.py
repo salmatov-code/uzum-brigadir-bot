@@ -27,18 +27,17 @@ class SheetsService:
         # run blocking call in thread with retries and backoff
         attempts = 3
         backoff = 1
-        last_exc = None
         for i in range(attempts):
             try:
-    return await asyncio.to_thread(self._fetch_sheet_sync, name)
-except Exception:
-    logger.exception(f"Attempt {i+1}/{attempts} failed to fetch sheet '{name}'")
-    last_exc = True
-    if i < attempts - 1:
-        await asyncio.sleep(backoff)
-        backoff *= 2
+                return await asyncio.to_thread(self._fetch_sheet_sync, name)
+            except Exception:
+                logger.exception(f"Attempt {i+1}/{attempts} failed to fetch sheet '{name}'")
+                if i < attempts - 1:
+                    await asyncio.sleep(backoff)
+                    backoff *= 2
         # final failure
-        logger.exception(f"Failed to fetch sheet '{name}' after {attempts} attempts")
+        logger.error(f"Failed to fetch sheet '{name}' after {attempts} attempts")
+        return []
 
     def _fetch_sheet_sync(self, name: str):
         # synchronous operations with gspread
