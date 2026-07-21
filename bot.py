@@ -23,12 +23,12 @@ async def main():
 
     asyncio.create_task(cache.start())
 
-        register_start_handlers(dp, cache, sheets)
-        register_search_handlers(dp, cache)
-        register_callback_handlers(dp, sheets, cache)
-    
+    register_start_handlers(dp, cache, sheets)
+    register_search_handlers(dp, cache)
+    register_callback_handlers(dp, sheets, cache)
+
     Thread(target=run, daemon=True).start()
-    
+
     logger.info("Bot started")
 
     try:
