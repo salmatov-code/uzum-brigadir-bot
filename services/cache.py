@@ -7,9 +7,9 @@ class Cache:
     def __init__(self, sheets: SheetsService, refresh_interval: int = 300):
         self.sheets = sheets
         self.refresh_interval = refresh_interval
-        self._data: List[Dict[str, Any]] = []
+        self._data = []
         self._videos = []
-        self._access = []
+        self._access = {}
         self._lock = asyncio.Lock()
 
     async def start(self):
@@ -20,9 +20,30 @@ class Cache:
 
     async def refresh(self):
         async with self._lock:
-            self._access = await self.sheets.get_access_list()
+            access = await self.sheets.get_access_list()
+
+            self._access = {}
+
+            for row in access:
+                tg_id = str(row.get("Telegram ID", "")).strip()
+                role = str(row.get("Роль", "user")).strip().lower()
+
+                if tg_id:
+                    self._access[tg_id] = role
+
             self._data = await self.sheets.get_couriers()
             self._videos = await self.sheets.get_videos()
+
+            print("ACCESS:", self._access)
+
+    def get_role(self, tg_id: int):
+        return self._access.get(str(tg_id))
+
+    def is_allowed(self, tg_id: int):
+        return str(tg_id) in self._access
+
+    def is_admin(self, tg_id: int):
+        return self._access.get(str(tg_id)) == "admin"
 
     def get_all(self):
         return list(self._data)
@@ -41,27 +62,6 @@ class Cache:
                 return self._normalize(r)
 
         return None
-
-    def is_allowed(self, tg_id: int) -> bool:
-        try:
-            target = int(tg_id)
-        except Exception:
-            target = None
-
-        for row in self._access:
-            for v in row.values():
-                if v is None:
-                    continue
-                s = str(v).strip()
-
-                try:
-                    if target is not None and int(s) == target:
-                        return True
-                except Exception:
-                    if s == str(tg_id):
-                        return True
-
-        return False
 
     def _normalize(self, row):
         return {
