@@ -8,38 +8,63 @@ router = Router()
 logger = logging.getLogger("search")
 
 PHONE_RE = re.compile(r"\+?\d{7,15}")
-ID_RE = re.compile(r"^\d{3,}$")
+NUMBER_RE = re.compile(r"^\d+$")
 
 
 async def search_handler(message: Message, cache):
     text = message.text.strip()
+    text_lower = text.lower()
+
     logger.info(f"Search by user {message.from_user.id}: {text}")
 
-    if ID_RE.match(text):
-        key = "id"
-    elif PHONE_RE.search(text):
-        key = "phone"
-    else:
-        key = "bag"
+    item = None
 
-    item = cache.find(text, key=key)
+    # Поиск по телефону
+    if PHONE_RE.fullmatch(text.replace(" ", "")):
+        item = cache.find(text, key="phone")
+
+    # курьер 91087
+    elif text_lower.startswith("курьер "):
+        value = text[8:].strip()
+        item = cache.find(value, key="id")
+
+    # сумка 33677
+    elif text_lower.startswith("сумка "):
+        value = text[6:].strip()
+        item = cache.find(value, key="bag")
+
+    # Просто число
+    elif NUMBER_RE.fullmatch(text):
+        # Сначала пробуем найти courier_id
+        item = cache.find(text, key="id")
+
+        # Если не нашли — ищем по сумке
+        if item is None:
+            item = cache.find(text, key="bag")
+
+    else:
+        # Любой другой текст считаем номером сумки
+        item = cache.find(text, key="bag")
 
     if not item:
         await message.answer("Ничего не найдено.")
         return
 
     card = (
-        f"🆔 ID: {item.get('id', '')}\n"
-        f"👤 {item.get('name', '')}\n"
-        f"📞 {item.get('phone', '')}\n"
-        f"🚗 {item.get('transport', '')}\n"
-        f"🤝 {item.get('partner', '')}\n"
-        f"🌍 {item.get('city', '')}\n"
-        f"🎒 {item.get('bag', '')}\n"
-        f"🟢 {item.get('status', '')}"
+        f"🆔 ID: {item['id']}\n"
+        f"👤 {item['name']}\n"
+        f"📞 {item['phone']}\n"
+        f"🚗 {item['transport']}\n"
+        f"🤝 {item['partner']}\n"
+        f"🌍 {item['city']}\n"
+        f"🎒 {item['bag']}\n"
+        f"🟢 {item['status']}"
     )
 
-    await message.answer(card, reply_markup=make_inline_markup(item))
+    await message.answer(
+        card,
+        reply_markup=make_inline_markup(item)
+    )
 
 
 def register_search_handlers(dp, cache):
