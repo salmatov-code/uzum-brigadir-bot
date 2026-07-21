@@ -2,9 +2,12 @@ import gspread
 import os
 import json
 import asyncio
+import logging
 from google.oauth2.service_account import Credentials
 from typing import List, Dict, Any
 from config import settings
+
+logger = logging.getLogger("sheets")
 
 class SheetsService:
     def __init__(self):
@@ -20,28 +23,39 @@ class SheetsService:
         self._lock = asyncio.Lock()
 
     async def fetch_sheet(self, name: str) -> List[Dict[str, Any]]:
-        # run blocking call in thread
-        return await asyncio.to_thread(self._fetch_sheet_sync, name)
+        # run blocking call in thread with retries and backoff
+        attempts = 3
+        backoff = 1
+        last_exc = None
+        for i in range(attempts):
+            try:
+                return await asyncio.to_thread(self._fetch_sheet_sync, name)
+            except Exception as e:
+                last_exc = e
+                logger.warning(f"Attempt {i+1}/{attempts} failed to fetch sheet {name}: {e}")
+                if i < attempts - 1:
+                    await asyncio.sleep(backoff)
+                    backoff *= 2
+        # final failure
+        logger.error(f"Failed to fetch sheet {name} after {attempts} attempts: {last_exc}")
+        return []
 
     def _fetch_sheet_sync(self, name: str):
+        # synchronous operations with gspread
+        # Prefer opening spreadsheet by ID (more reliable). Fall back to open(name).
+        if getattr(settings, 'SPREADSHEET_ID', None):
+            sh = self.client.open_by_key(settings.SPREADSHEET_ID)
+        else:
+            sh = self.client.open(name)
+
+        # Try to get worksheet by title first; fall back to the first worksheet
         try:
-            # Prefer opening spreadsheet by ID (more reliable). Fall back to open(name).
-            if getattr(settings, 'SPREADSHEET_ID', None):
-                sh = self.client.open_by_key(settings.SPREADSHEET_ID)
-            else:
-                sh = self.client.open(name)
-
-            # Try to get worksheet by title first; fall back to the first worksheet
-            try:
-                ws = sh.worksheet(name)
-            except Exception:
-                ws = sh.sheet1
-
-            records = ws.get_all_records()
-            return records
+            ws = sh.worksheet(name)
         except Exception:
-            # on any error return empty list
-            return []
+            ws = sh.sheet1
+
+        records = ws.get_all_records()
+        return records
 
     async def get_access_list(self):
         return await self.fetch_sheet('Доступ')

@@ -22,7 +22,7 @@ async def main():
     # start background cache refresher
     asyncio.create_task(cache.start())
 
-    register_start_handlers(dp, sheets)
+    register_start_handlers(dp, cache)
     register_search_handlers(dp, cache)
     register_callback_handlers(dp, sheets, cache)
 
