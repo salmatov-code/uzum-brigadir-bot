@@ -10,7 +10,6 @@ class Cache:
         self._data: List[Dict[str, Any]] = []
         self._videos = []
         self._access: Dict[str, str] = {}
-        self._task = None
         self._lock = asyncio.Lock()
 
     async def start(self):
@@ -21,7 +20,6 @@ class Cache:
 
     async def refresh(self):
         async with self._lock:
-            # Загружаем список доступа
             try:
                 access = await self.sheets.get_access_list()
 
@@ -40,14 +38,13 @@ class Cache:
 
             print("ACCESS:", self._access)
 
-            # Загружаем курьеров
             try:
                 self._data = await self.sheets.get_couriers()
+                print(f"Loaded couriers: {len(self._data)}")
             except Exception as e:
                 print("Couriers:", e)
                 self._data = []
 
-            # Загружаем видео
             try:
                 self._videos = await self.sheets.get_videos()
             except Exception as e:
@@ -61,13 +58,33 @@ class Cache:
         q = query.strip().lower()
 
         for r in self._data:
-            if key == "id" and str(r.get("ID", "")).lower() == q:
+            courier_id = str(
+                r.get("courier_id")
+                or r.get("ID")
+                or r.get("Id")
+                or r.get("id")
+                or ""
+            ).strip().lower()
+
+            phone = str(
+                r.get("Телефон")
+                or r.get("Номер телефона")
+                or ""
+            ).strip().lower()
+
+            bag = str(
+                r.get("Сумка")
+                or r.get("Номер сумки")
+                or ""
+            ).strip().lower()
+
+            if key == "id" and courier_id == q:
                 return self._normalize(r)
 
-            if key == "phone" and q in str(r.get("Телефон", "")).lower():
+            if key == "phone" and q in phone:
                 return self._normalize(r)
 
-            if key == "bag" and q in str(r.get("Номер сумки", "")).lower():
+            if key == "bag" and bag == q:
                 return self._normalize(r)
 
         return None
@@ -80,12 +97,20 @@ class Cache:
 
     def _normalize(self, row: Dict[str, Any]):
         return {
-            "id": row.get("ID") or row.get("Id") or row.get("id"),
-            "name": f"{row.get('Имя', '')} {row.get('Фамилия', '')}",
-            "phone": row.get("Телефон", ""),
+            "id": (
+                row.get("courier_id")
+                or row.get("ID")
+                or row.get("Id")
+                or row.get("id")
+            ),
+            "name": (
+                row.get("ФИО")
+                or f"{row.get('Имя', '')} {row.get('Фамилия', '')}".strip()
+            ),
+            "phone": row.get("Телефон") or row.get("Номер телефона", ""),
             "transport": row.get("Тип транспорта", ""),
-            "partner": row.get("Партнёр", "") or row.get("Партнер", ""),
+            "partner": row.get("Партнёр") or row.get("Партнер", ""),
             "city": row.get("Город", ""),
-            "bag": row.get("Номер сумки", "") or row.get("Сумка", ""),
+            "bag": row.get("Сумка") or row.get("Номер сумки", ""),
             "status": row.get("Статус", ""),
         }
