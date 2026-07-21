@@ -35,8 +35,6 @@ async def main():
     # Регистрация обработчиков
     register_start_handlers(dp, cache, sheets)
     register_search_handlers(dp, cache)
-    register_callback_handlers(dp, sheets, cache)
-    register_admin_handlers(dp, cache, sheets)
     register_admin_handlers(dp, cache, sheets)
     register_admin_fsm(dp, sheets, cache)
     register_callback_handlers(dp, sheets, cache)
