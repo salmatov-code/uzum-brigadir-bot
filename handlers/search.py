@@ -113,7 +113,7 @@ def register_search_handlers(dp, cache):
             return
 
         if not cache.is_allowed(message.from_user.id):
-            await message.answer("⛔ Доступ запрещён.")
+            await message.answer("⛔ Доступ запрещён, запроси у админа доступ.")
             return
 
         await search_handler(message, cache)
