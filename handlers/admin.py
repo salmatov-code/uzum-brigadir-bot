@@ -7,21 +7,27 @@ from keyboards.admin import admin_menu
 router = Router()
 
 
-async def admin_panel(message: Message, cache):
-    if not cache.is_admin(message.from_user.id):
-        await message.answer("❌ У вас нет доступа к панели администратора.")
-        return
-
-    await message.answer(
-        "⚙️ <b>Панель администратора</b>",
-        reply_markup=admin_menu(),
-    )
-
-
 def register_admin_handlers(dp, cache, sheets):
-    async def wrapper(message: Message):
-        await admin_panel(message, cache)
 
-    router.message.register(wrapper, Command("admin"))
+    @router.message(Command("admin"))
+    async def admin(message: Message):
+        print("ADMIN COMMAND RECEIVED")
+
+        await message.answer(
+            f"""
+ID: {message.from_user.id}
+Role: {cache.get_role(message.from_user.id)}
+Is admin: {cache.is_admin(message.from_user.id)}
+"""
+        )
+
+        if not cache.is_admin(message.from_user.id):
+            await message.answer("❌ Нет доступа")
+            return
+
+        await message.answer(
+            "⚙️ Панель администратора",
+            reply_markup=admin_menu(),
+        )
 
     dp.include_router(router)
