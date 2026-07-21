@@ -1,81 +1,73 @@
-import gspread
-import os
-import json
-import asyncio
+from aiogram import Router, types
+from aiogram.filters import CommandStart, Command
 import logging
-from google.oauth2.service_account import Credentials
-from typing import List, Dict, Any
-from config import settings
+import time
+from services.sheets import SheetsService
 
-logger = logging.getLogger("sheets")
+router = Router()
+logger = logging.getLogger("start")
+
+@router.message(CommandStart())
+async def start_handler(message: types.Message, cache=None):
+    # This function will not be registered directly; we use a wrapper to inject cache and check access.
+    await message.answer("Привет! Отправь ID курьера, телефон или номер сумки для поиска.")
 
 
-class SheetsService:
-    def __init__(self):
-        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON") or getattr(
-            settings, "GOOGLE_SERVICE_ACCOUNT_JSON", None
-        )
+async def _ping_handler(message: types.Message, cache=None, sheets: SheetsService | None = None):
+    """Perform a health check of Google Sheets and return a multi-line status."""
+    start = time.perf_counter()
 
-        if not sa_json:
-            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON not set")
+    # Basic Google Sheets availability
+    if sheets is None:
+        await message.answer("🟢 Google Sheets\n\n❌ Подключение\n\nСервис недоступен. Попробуйте позже.")
+        return
 
-        info = json.loads(sa_json)
+    status = await sheets.check_health()
 
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets.readonly",
-        ]
+    lines = []
+    lines.append("🟢 Google Sheets")
+    lines.append("")
+    lines.append(f"{ '✅' if status.get('connected') else '❌' } Подключение")
+    lines.append(f"{ '✅' if status.get('couriers') else '❌' } Лист \"Курьеры\"")
+    lines.append(f"{ '✅' if status.get('access') else '❌' } Лист \"Доступ\"")
+    lines.append(f"{ '✅' if status.get('read') else '❌' } Чтение")
+    lines.append(f"{ '✅' if status.get('write') else '❌' } Запись")
 
-        creds = Credentials.from_service_account_info(info, scopes=scopes)
-        self.client = gspread.authorize(creds)
+    elapsed = int((time.perf_counter() - start) * 1000)
+    lines.append("")
+    lines.append(f"Время ответа: {elapsed} ms")
 
-    async def fetch_sheet(self, name: str):
-        return await asyncio.to_thread(self._fetch_sheet_sync, name)
+    await message.answer("\n".join(lines))
 
-    def _fetch_sheet_sync(self, name: str):
-        if getattr(settings, "SPREADSHEET_ID", None):
-            sh = self.client.open_by_key(settings.SPREADSHEET_ID)
-        else:
-            sh = self.client.open(name)
 
-        ws = sh.worksheet(name)
+def register_start_handlers(dp, cache, sheets):
+    async def _wrapped_start(message: types.Message):
+        try:
+            if not cache.is_allowed(message.from_user.id):
+                await message.answer("Доступ запрещён.")
+                logger.warning(f"Unauthorized /start attempt by {message.from_user.id}")
+                return
+        except Exception as e:
+            # If cache or access check fails, don't crash — inform user and log.
+            logger.exception("Error checking access in /start")
+            await message.answer("Ошибка проверки доступа. Попробуйте позже.")
+            return
 
-        # Лист доступа читаем отдельно
-        if name == "Доступ":
-            ids = ws.col_values(1)[1:]  # пропускаем заголовок
+        await start_handler(message, cache=cache)
 
-            result = []
-            for tg_id in ids:
-                tg_id = str(tg_id).strip()
-                if tg_id:
-                    result.append({"Telegram ID": tg_id})
+    async def _wrapped_ping(message: types.Message):
+        try:
+            if not cache.is_allowed(message.from_user.id):
+                await message.answer("Доступ запрещён.")
+                logger.warning(f"Unauthorized /ping attempt by {message.from_user.id}")
+                return
+        except Exception:
+            logger.exception("Error checking access in /ping")
+            await message.answer("Ошибка проверки доступа. Попробуйте позже.")
+            return
 
-            logger.info(f"Loaded access list: {result}")
-            return result
+        await _ping_handler(message, cache=cache, sheets=sheets)
 
-        return ws.get_all_records()
-
-    async def get_access_list(self):
-        return await self.fetch_sheet("Доступ")
-
-    async def get_couriers(self):
-        return await self.fetch_sheet("Курьеры")
-
-    async def get_videos(self):
-        return await self.fetch_sheet("Видео")
-
-    async def find_video(self, key: str):
-        videos = await self.get_videos()
-
-        for r in videos:
-            if (
-                str(r.get("id", "")).strip() == str(key).strip()
-                or str(r.get("bag", "")).strip() == str(key).strip()
-                or str(r.get("phone", "")).strip() == str(key).strip()
-            ):
-                if r.get("video"):
-                    return r["video"]
-
-                if r.get("doc"):
-                    return r["doc"]
-
-        return None
+    router.message.register(_wrapped_start, CommandStart())
+    router.message.register(_wrapped_ping, Command("ping"))
+    dp.include_router(router)
