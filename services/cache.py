@@ -70,16 +70,42 @@ class Cache:
             target = None
 
         for row in self._access:
-            for v in row.values():
-                if v is None:
+            # row might be a dict (from get_all_records) or other types
+            if isinstance(row, dict):
+                # Check values first (existing behavior)
+                for v in row.values():
+                    if v is None:
+                        continue
+                    s = str(v).strip()
+                    # numeric compare
+                    try:
+                        if target is not None and int(s) == target:
+                            return True
+                    except Exception:
+                        # fallback to string compare
+                        if s == str(tg_id):
+                            return True
+                # NEW: also check keys (in case the spreadsheet had IDs as header keys)
+                for k in row.keys():
+                    if k is None:
+                        continue
+                    s = str(k).strip()
+                    try:
+                        if target is not None and int(s) == target:
+                            return True
+                    except Exception:
+                        if s == str(tg_id):
+                            return True
+            else:
+                # If row is a plain value (list element), compare directly
+                try:
+                    s = str(row).strip()
+                except Exception:
                     continue
-                s = str(v).strip()
-                # numeric compare
                 try:
                     if target is not None and int(s) == target:
                         return True
                 except Exception:
-                    # fallback to string compare
                     if s == str(tg_id):
                         return True
         return False
