@@ -10,11 +10,21 @@ logger = logging.getLogger("search")
 PHONE_RE = re.compile(r"\+?\d{7,15}")
 NUMBER_RE = re.compile(r"^\d+$")
 
+# Статусы
 STATUS = {
     "active": "🟢 Active",
     "lost": "🟡 Lost",
     "blocked": "🔵 Blocked",
     "retired": "🔴 Retired",
+}
+
+# Транспорт
+TRANSPORT = {
+    "foot": "🚶 Пешком",
+    "bike": "🚲 Велосипед",
+    "scooter": "🛴 Самокат",
+    "moped": "🛵 Мопед",
+    "car": "🚗 Автомобиль",
 }
 
 
