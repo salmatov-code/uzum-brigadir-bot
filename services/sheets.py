@@ -145,7 +145,7 @@ class SheetsService:
             result["write"] = True
         except Exception as e:
             logger.warning(f"Write test failed: {e}")
-            result["write"] = False
+            result['write'] = False
 
         return result
 
