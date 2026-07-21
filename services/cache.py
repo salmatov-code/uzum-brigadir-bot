@@ -72,6 +72,10 @@ class Cache:
                 print("MEDIA ERROR:", e)
                 self._media = {}
 
+    # =======================
+    # COURIERS
+    # =======================
+
     def get_all(self):
         return list(self._data)
 
@@ -113,6 +117,21 @@ class Cache:
 
     def is_moderator(self, tg_id: int):
         return self.get_role(tg_id) in ("admin", "moderator")
+
+    def get_users(self):
+        return dict(self._access)
+
+    async def force_refresh(self):
+        await self.refresh()
+
+    def add_access(self, tg_id: int, role: str):
+        self._access[str(tg_id)] = role.lower()
+
+    def update_access(self, tg_id: int, role: str):
+        self._access[str(tg_id)] = role.lower()
+
+    def remove_access(self, tg_id: int):
+        self._access.pop(str(tg_id), None)
 
     # =======================
     # MEDIA
