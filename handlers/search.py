@@ -72,32 +72,21 @@ async def search_handler(message: Message, cache):
     city = item.get("city") or "Нет"
     bag = item.get("bag") or "Нет"
 
-    # Пока заглушки (позже будут из cache/media)
-    has_video = False
-    has_act = False
-
-    video = "✅" if has_video else "❌"
-    act = "✅" if has_act else "❌"
-
     # Проверка роли
     is_admin = cache.is_admin(message.from_user.id)
 
     card = "\n".join([
-        "👤 <b>Карточка курьера</b>",
-        "",
-        f"🆔 <b>{item.get('id')}</b> • {status}",
-        "",
-        f"👤 {name}",
-        f"📞 {phone}",
-        f"🛵 {transport}",
-        f"🤝 {partner}",
-        f"🌍 {city}",
-        f"🎒 {bag}",
-        "",
-        "📂 <b>Материалы</b>",
-        f"🎥 Видео {video}",
-        f"📄 Акт {act}",
-    ])
+    "👤 <b>Карточка курьера</b>",
+    "",
+    f"🆔 <b>{item.get('id')}</b> • {status}",
+    "",
+    f"👤 {name}",
+    f"📞 {phone}",
+    f"🛵 {transport}",
+    f"🤝 {partner}",
+    f"🌍 {city}",
+    f"🎒 {bag}",
+])
 
     await message.answer(
         card,
