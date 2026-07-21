@@ -10,6 +10,13 @@ logger = logging.getLogger("search")
 PHONE_RE = re.compile(r"\+?\d{7,15}")
 NUMBER_RE = re.compile(r"^\d+$")
 
+STATUS = {
+    "active": "🟢 Active",
+    "lost": "🟡 Lost",
+    "blocked": "🔵 Blocked",
+    "retired": "🔴 Retired",
+}
+
 
 async def search_handler(message: Message, cache):
     text = message.text.strip()
@@ -35,34 +42,54 @@ async def search_handler(message: Message, cache):
 
     # Просто число
     elif NUMBER_RE.fullmatch(text):
-        # Сначала пробуем найти courier_id
         item = cache.find(text, key="id")
 
-        # Если не нашли — ищем по сумке
         if item is None:
             item = cache.find(text, key="bag")
 
     else:
-        # Любой другой текст считаем номером сумки
         item = cache.find(text, key="bag")
 
     if not item:
-        await message.answer("Ничего не найдено.")
+        await message.answer("❌ Ничего не найдено.")
         return
 
+    # Красивый статус
+    status = STATUS.get(
+        str(item["status"]).lower(),
+        item["status"]
+    )
+
+    # Добавляем "+" к телефону
+    phone = str(item["phone"]).strip()
+    if phone and not phone.startswith("+"):
+        phone = "+" + phone
+
+    # Пока заглушки (потом будут браться из таблицы Видео)
+    has_video = False
+    has_act = False
+
+    video = "✅" if has_video else "❌"
+    act = "✅" if has_act else "❌"
+
     card = (
-        f"🆔 ID: {item['id']}\n"
+        "👤 <b>Карточка курьера</b>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🆔 <b>ID:</b> {item['id']}    {status}\n\n"
         f"👤 {item['name']}\n"
-        f"📞 {item['phone']}\n"
+        f"📞 {phone}\n\n"
         f"🚗 {item['transport']}\n"
         f"🤝 {item['partner']}\n"
         f"🌍 {item['city']}\n"
-        f"🎒 {item['bag']}\n"
-        f"🟢 {item['status']}"
+        f"🎒 {item['bag']}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📂 <b>Материалы</b>\n\n"
+        f"🎥 Видео {video}    📄 Акт {act}"
     )
 
     await message.answer(
         card,
+        parse_mode="HTML",
         reply_markup=make_inline_markup(item)
     )
 
