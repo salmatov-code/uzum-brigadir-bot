@@ -1,7 +1,6 @@
 from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from handlers.admin_fsm import AdminFSM
 import logging
 
 router = Router()
@@ -29,6 +28,7 @@ async def all_callbacks(
 
     # Список пользователей
     elif action == "admin_users":
+
         if not cache.is_admin(query.from_user.id):
             await query.answer("Нет доступа", show_alert=True)
             return
@@ -49,21 +49,9 @@ async def all_callbacks(
 
             await query.message.answer(text)
 
-    # Пока заглушки
-    elif action == "admin_add_user":
-        await query.message.answer(
-            "➕ Добавление пользователя пока не реализовано."
-        )
-
-    elif action == "admin_change_role":
-        await query.message.answer(
-            "✏️ Изменение роли пока не реализовано."
-        )
-
-    elif action == "admin_remove_user":
-        await query.message.answer(
-            "🚫 Удаление пользователя пока не реализовано."
-        )
+    # Остальные callback'и обрабатываются другими роутерами
+    else:
+        return
 
     await query.answer()
 
@@ -71,6 +59,7 @@ async def all_callbacks(
 def register_callback_handlers(dp, sheets, cache):
 
     async def _wrapped(query: CallbackQuery, state: FSMContext):
+
         try:
             if not cache.is_allowed(query.from_user.id):
                 await query.message.answer("Доступ запрещён.")
@@ -89,7 +78,7 @@ def register_callback_handlers(dp, sheets, cache):
             return
 
         await all_callbacks(
-            query,
+            query=query,
             sheets=sheets,
             cache=cache,
             state=state,
