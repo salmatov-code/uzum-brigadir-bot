@@ -143,4 +143,111 @@ class SheetsService:
             logger.warning(f"Write test failed: {e}")
             result['write'] = False
 
-        return result
+               return result
+
+    # ==========================
+    # ACCESS MANAGEMENT
+    # ==========================
+
+    async def add_user(
+        self,
+        telegram_id: int,
+        name: str,
+        role: str,
+        added_by: str,
+        date: str,
+    ):
+        await asyncio.to_thread(
+            self._add_user_sync,
+            telegram_id,
+            name,
+            role,
+            added_by,
+            date,
+        )
+
+    def _add_user_sync(
+        self,
+        telegram_id,
+        name,
+        role,
+        added_by,
+        date,
+    ):
+        if getattr(settings, "SPREADSHEET_ID", None):
+            sh = self.client.open_by_key(settings.SPREADSHEET_ID)
+        else:
+            sh = self.client.open("Доступ")
+
+        ws = sh.worksheet("Доступ")
+
+        ws.append_row([
+            str(telegram_id),
+            name,
+            role.lower(),
+            added_by,
+            date,
+        ])
+
+
+    async def update_role(
+        self,
+        telegram_id: int,
+        role: str,
+    ):
+        await asyncio.to_thread(
+            self._update_role_sync,
+            telegram_id,
+            role,
+        )
+
+    def _update_role_sync(
+        self,
+        telegram_id,
+        role,
+    ):
+        if getattr(settings, "SPREADSHEET_ID", None):
+            sh = self.client.open_by_key(settings.SPREADSHEET_ID)
+        else:
+            sh = self.client.open("Доступ")
+
+        ws = sh.worksheet("Доступ")
+
+        values = ws.get_all_values()
+
+        for i, row in enumerate(values[1:], start=2):
+            if len(row) >= 3 and row[0].strip() == str(telegram_id):
+                ws.update_cell(i, 3, role.lower())
+                return
+
+
+    async def remove_user(
+        self,
+        telegram_id: int,
+    ):
+        await asyncio.to_thread(
+            self._remove_user_sync,
+            telegram_id,
+        )
+
+    def _remove_user_sync(
+        self,
+        telegram_id,
+    ):
+        if getattr(settings, "SPREADSHEET_ID", None):
+            sh = self.client.open_by_key(settings.SPREADSHEET_ID)
+        else:
+            sh = self.client.open("Доступ")
+
+        ws = sh.worksheet("Доступ")
+
+        values = ws.get_all_values()
+
+        for i, row in enumerate(values[1:], start=2):
+            if row and row[0].strip() == str(telegram_id):
+                ws.delete_rows(i)
+                return
+
+
+    async def list_users(self):
+        return await self.fetch_sheet("Доступ")
