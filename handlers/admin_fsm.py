@@ -20,7 +20,43 @@ class AdminFSM(StatesGroup):
 
 
 def register_admin_fsm(dp, sheets, cache):
+        # ---------- ЗАПУСК FSM ----------
 
+    @router.callback_query(F.data == "admin_add_user")
+    async def start_add(query, state: FSMContext):
+
+        await state.clear()
+        await state.set_state(AdminFSM.waiting_add_id)
+
+        await query.message.answer(
+            "Введите Telegram ID нового пользователя:"
+        )
+
+        await query.answer()
+
+    @router.callback_query(F.data == "admin_change_role")
+    async def start_edit(query, state: FSMContext):
+
+        await state.clear()
+        await state.set_state(AdminFSM.waiting_edit_id)
+
+        await query.message.answer(
+            "Введите Telegram ID пользователя:"
+        )
+
+        await query.answer()
+
+    @router.callback_query(F.data == "admin_remove_user")
+    async def start_remove(query, state: FSMContext):
+
+        await state.clear()
+        await state.set_state(AdminFSM.waiting_remove_id)
+
+        await query.message.answer(
+            "Введите Telegram ID пользователя для удаления:"
+        )
+
+        await query.answer()
     # ---------- ДОБАВЛЕНИЕ ----------
 
     @router.message(AdminFSM.waiting_add_id)
