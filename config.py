@@ -1,13 +1,14 @@
-import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
-    GOOGLE_SERVICE_ACCOUNT_JSON: str  # JSON string
+    GOOGLE_SERVICE_ACCOUNT_JSON: str
     SPREADSHEET_ID: str
     LOG_LEVEL: str = "INFO"
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
 
 settings = Settings()
