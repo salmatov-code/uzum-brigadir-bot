@@ -16,8 +16,6 @@ async def search_handler(message: Message, cache=None):
     text = message.text.strip()
     logger.info(f"Search by user {message.from_user.id}: {text}")
 
-    # authorization is handled in middleware or earlier
-
     # determine type
     if ID_RE.match(text):
         key = 'id'
@@ -46,6 +44,13 @@ async def search_handler(message: Message, cache=None):
     await message.answer(card, reply_markup=markup)
 
 def register_search_handlers(dp, cache):
-    # we use dependency injection by attaching cache via closure
-    router.message.register(search_handler)
+    # Wrap handler to perform access check and inject cache explicitly.
+    async def _wrapped(message: Message):
+        if not cache.is_allowed(message.from_user.id):
+            await message.answer("Доступ запрещён.")
+            logger.warning(f"Unauthorized access by {message.from_user.id}")
+            return
+        await search_handler(message, cache=cache)
+
+    router.message.register(_wrapped)
     dp.include_router(router)

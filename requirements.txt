@@ -2,4 +2,4 @@ aiogram==3.*
 gspread
 google-auth
 python-dotenv
-pydantic
+pydantic==1.10.13

@@ -4,10 +4,11 @@ import json
 import asyncio
 from google.oauth2.service_account import Credentials
 from typing import List, Dict, Any
+from config import settings
 
 class SheetsService:
     def __init__(self):
-        sa_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+        sa_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON') or getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_JSON', None)
         if not sa_json:
             raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_JSON not set')
         info = json.loads(sa_json)
@@ -24,17 +25,23 @@ class SheetsService:
 
     def _fetch_sheet_sync(self, name: str):
         try:
-            sh = self.client.open(name)
-            ws = sh.sheet1
+            # Prefer opening spreadsheet by ID (more reliable). Fall back to open(name).
+            if getattr(settings, 'SPREADSHEET_ID', None):
+                sh = self.client.open_by_key(settings.SPREADSHEET_ID)
+            else:
+                sh = self.client.open(name)
+
+            # Try to get worksheet by title first; fall back to the first worksheet
+            try:
+                ws = sh.worksheet(name)
+            except Exception:
+                ws = sh.sheet1
+
             records = ws.get_all_records()
             return records
         except Exception:
-            # fallback: try by workbook if sheet exists with given title
-            try:
-                wb = self.client.open("main")
-                return []
-            except Exception:
-                return []
+            # on any error return empty list
+            return []
 
     async def get_access_list(self):
         return await self.fetch_sheet('Доступ')
@@ -48,8 +55,8 @@ class SheetsService:
     async def find_video(self, key: str):
         videos = await self.get_videos()
         for r in videos:
-            # match by id, bag or phone
-            if str(r.get('id','')) == str(key) or str(r.get('bag','')) == str(key) or str(r.get('phone','')) == str(key):
+            # match by id, bag or phone (case-insensitive)
+            if str(r.get('id','')).strip() == str(key).strip() or str(r.get('bag','')).strip() == str(key).strip() or str(r.get('phone','')).strip() == str(key).strip():
                 # prefer video then doc
                 if r.get('video'):
                     return r.get('video')
