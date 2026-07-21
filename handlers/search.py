@@ -108,15 +108,16 @@ async def search_handler(message: Message, cache):
 def register_search_handlers(dp, cache):
 
     async def wrapped(message: Message):
-        # Не обрабатываем команды
-        if message.text and message.text.startswith("/"):
-            return
-
         if not cache.is_allowed(message.from_user.id):
             await message.answer("⛔ Доступ запрещён, запроси у админа доступ.")
             return
 
         await search_handler(message, cache)
 
-    router.message.register(wrapped)
+    router.message.register(
+        wrapped,
+        F.text,
+        ~F.text.startswith("/")
+    )
+
     dp.include_router(router)
