@@ -3,6 +3,7 @@ import os
 import json
 import asyncio
 import logging
+import time
 from google.oauth2.service_account import Credentials
 from typing import List, Dict, Any
 from config import settings
@@ -16,7 +17,7 @@ class SheetsService:
             raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_JSON not set')
         info = json.loads(sa_json)
         scopes = [
-            'https://www.googleapis.com/auth/spreadsheets.readonly',
+            'https://www.googleapis.com/auth/spreadsheets',
         ]
         creds = Credentials.from_service_account_info(info, scopes=scopes)
         self.client = gspread.authorize(creds)
@@ -55,6 +56,12 @@ class SheetsService:
             ws = sh.sheet1
 
         records = ws.get_all_records()
+        # Temporary debug: log fetched records to help diagnose data issues
+        try:
+            logger.info(f"Sheet '{name}': {records}")
+        except Exception:
+            # ensure logging never breaks functionality
+            pass
         return records
 
     async def get_access_list(self):
@@ -77,3 +84,65 @@ class SheetsService:
                 if r.get('doc'):
                     return r.get('doc')
         return None
+
+    async def check_health(self) -> Dict[str, Any]:
+        """Perform step-by-step health checks for the configured spreadsheet.
+
+        Returns a dict with keys:
+          connected, couriers, access, read, write
+        """
+        result = {
+            'connected': False,
+            'couriers': False,
+            'access': False,
+            'read': False,
+            'write': False,
+        }
+
+        # 1) Try to open the spreadsheet
+        try:
+            if getattr(settings, 'SPREADSHEET_ID', None):
+                sh = await asyncio.to_thread(self.client.open_by_key, settings.SPREADSHEET_ID)
+            else:
+                # fallback: try open by any means (may not be reliable)
+                sh = await asyncio.to_thread(self.client.open, '')
+            result['connected'] = True
+        except Exception as e:
+            logger.warning(f"Spreadsheet connection failed: {e}")
+            return result
+
+        # 2) Check worksheets existence
+        try:
+            await asyncio.to_thread(sh.worksheet, 'Курьеры')
+            result['couriers'] = True
+        except Exception:
+            result['couriers'] = False
+
+        try:
+            await asyncio.to_thread(sh.worksheet, 'Доступ')
+            result['access'] = True
+        except Exception:
+            result['access'] = False
+
+        # 3) Readability test: try to read 'Курьеры' if exists
+        if result['couriers']:
+            try:
+                ws = await asyncio.to_thread(sh.worksheet, 'Курьеры')
+                await asyncio.to_thread(ws.get_all_records)
+                result['read'] = True
+            except Exception as e:
+                logger.warning(f"Read test failed: {e}")
+                result['read'] = False
+
+        # 4) Writability test: try to create and delete a temporary worksheet
+        tmp_title = f"ping_tmp_{int(time.time())}"
+        try:
+            tmp_ws = await asyncio.to_thread(sh.add_worksheet, tmp_title, 1, 1)
+            # delete it afterwards
+            await asyncio.to_thread(sh.del_worksheet, tmp_ws)
+            result['write'] = True
+        except Exception as e:
+            logger.warning(f"Write test failed: {e}")
+            result['write'] = False
+
+        return result
