@@ -32,18 +32,15 @@ async def search_handler(message: Message, cache):
 
     # курьер 91087
     elif text_lower.startswith("курьер "):
-        value = text[8:].strip()
-        item = cache.find(value, key="id")
+        item = cache.find(text[8:].strip(), key="id")
 
     # сумка 33677
     elif text_lower.startswith("сумка "):
-        value = text[6:].strip()
-        item = cache.find(value, key="bag")
+        item = cache.find(text[6:].strip(), key="bag")
 
     # Просто число
     elif NUMBER_RE.fullmatch(text):
         item = cache.find(text, key="id")
-
         if item is None:
             item = cache.find(text, key="bag")
 
@@ -54,64 +51,53 @@ async def search_handler(message: Message, cache):
         await message.answer("❌ Ничего не найдено.")
         return
 
-    # Красивый статус
+    # Статус
     status = STATUS.get(
         str(item.get("status", "")).lower(),
-        item.get("status", "")
+        item.get("status", "Неизвестно")
     )
 
-    # Добавляем "+" к телефону
-    phone = str(item.get("phone", "")).strip()
-    if phone and not phone.startswith("+"):
-        phone = "+" + phone
+    # Телефон
+    phone = str(item.get("phone") or "").strip()
+    if phone:
+        if not phone.startswith("+"):
+            phone = "+" + phone
+    else:
+        phone = "Нет"
 
-    # Пока заглушки (потом будут браться из таблицы Видео)
+    # Остальные поля
+    name = item.get("name") or "Нет"
+    transport = item.get("transport") or "Нет"
+    partner = item.get("partner") or "Нет"
+    city = item.get("city") or "Нет"
+    bag = item.get("bag") or "Нет"
+
+    # Пока заглушки (позже будут из cache/media)
     has_video = False
     has_act = False
 
     video = "✅" if has_video else "❌"
     act = "✅" if has_act else "❌"
 
-    # detect admin status for current user — minimal heuristic based on cache._access contents
-    is_admin = False
-    try:
-        uid = str(message.from_user.id)
-        access_list = getattr(cache, "_access", [])
-        for row in access_list:
-            if isinstance(row, dict):
-                # check if this row contains the user id (as key or value)
-                contains_id = any(str(k).strip() == uid or str(v).strip() == uid for k, v in row.items())
-                if not contains_id:
-                    continue
-                # if the row contains admin-like marker in any value -> admin
-                for k, v in row.items():
-                    try:
-                        if isinstance(v, str) and v.strip().lower() in ("admin", "админ", "administrator"):
-                            is_admin = True
-                            break
-                    except Exception:
-                        continue
-                if is_admin:
-                    break
-            else:
-                # row is primitive, unlikely to contain role info
-                continue
-    except Exception:
-        is_admin = False
+    # Проверка роли
+    is_admin = cache.is_admin(message.from_user.id)
 
-    card = (
-        "👤 <b>Карточка курьера</b>\n\n"
-        f"🆔 <b>{item.get('id')}</b> • {status}\n\n"
-        f"👤 {item.get('name')}\n"
-        f"📞 {phone}\n"
-        f"🚗 {item.get('transport')}\n"
-        f"🤝 {item.get('partner')}\n"
-        f"🌍 {item.get('city')}\n"
-        f"🎒 {item.get('bag')}\n\n"
-        "📂 <b>Материалы</b>\n"
-        f"🎥 Видео {video}\n"
-        f"📄 Акт {act}"
-    )
+    card = "\n".join([
+        "👤 <b>Карточка курьера</b>",
+        "",
+        f"🆔 <b>{item.get('id')}</b> • {status}",
+        "",
+        f"👤 {name}",
+        f"📞 {phone}",
+        f"🛵 {transport}",
+        f"🤝 {partner}",
+        f"🌍 {city}",
+        f"🎒 {bag}",
+        "",
+        "📂 <b>Материалы</b>",
+        f"🎥 Видео {video}",
+        f"📄 Акт {act}",
+    ])
 
     await message.answer(
         card,
@@ -123,7 +109,7 @@ async def search_handler(message: Message, cache):
 def register_search_handlers(dp, cache):
     async def wrapped(message: Message):
         if not cache.is_allowed(message.from_user.id):
-            await message.answer("Доступ запрещён.")
+            await message.answer("⛔ Доступ запрещён.")
             return
 
         await search_handler(message, cache)
