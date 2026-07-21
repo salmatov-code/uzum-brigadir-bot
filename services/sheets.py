@@ -135,15 +135,19 @@ class SheetsService:
         # 4) Writability test: try to create and delete a temporary worksheet
         tmp_title = f"ping_tmp_{int(time.time())}"
         try:
-            tmp_ws = await asyncio.to_thread(sh.add_worksheet, tmp_title, 1, 1)
-            # delete it afterwards
+            tmp_ws = await asyncio.to_thread(
+                sh.add_worksheet,
+                tmp_title,
+                1,
+                1,
+            )
             await asyncio.to_thread(sh.del_worksheet, tmp_ws)
-            result['write'] = True
+            result["write"] = True
         except Exception as e:
             logger.warning(f"Write test failed: {e}")
-            result['write'] = False
+            result["write"] = False
 
-               return result
+        return result
 
     # ==========================
     # ACCESS MANAGEMENT
@@ -189,7 +193,6 @@ class SheetsService:
             date,
         ])
 
-
     async def update_role(
         self,
         telegram_id: int,
@@ -212,14 +215,12 @@ class SheetsService:
             sh = self.client.open("Доступ")
 
         ws = sh.worksheet("Доступ")
-
         values = ws.get_all_values()
 
         for i, row in enumerate(values[1:], start=2):
             if len(row) >= 3 and row[0].strip() == str(telegram_id):
                 ws.update_cell(i, 3, role.lower())
                 return
-
 
     async def remove_user(
         self,
@@ -240,14 +241,12 @@ class SheetsService:
             sh = self.client.open("Доступ")
 
         ws = sh.worksheet("Доступ")
-
         values = ws.get_all_values()
 
         for i, row in enumerate(values[1:], start=2):
             if row and row[0].strip() == str(telegram_id):
                 ws.delete_rows(i)
                 return
-
 
     async def list_users(self):
         return await self.fetch_sheet("Доступ")
