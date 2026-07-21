@@ -18,15 +18,12 @@ async def all_callbacks(
     action = parts[0]
     key = parts[1] if len(parts) > 1 else ""
 
-    # Просмотр сумки
     if action == "bag":
         await query.message.answer(f"Сумка: {key}")
 
-    # Закрыть админ-панель
     elif action == "admin_close":
         await query.message.delete()
 
-    # Список пользователей
     elif action == "admin_users":
 
         if not cache.is_admin(query.from_user.id):
@@ -49,7 +46,6 @@ async def all_callbacks(
 
             await query.message.answer(text)
 
-    # Остальные callback'и обрабатываются другими роутерами
     else:
         return
 
@@ -60,25 +56,13 @@ def register_callback_handlers(dp, sheets, cache):
 
     async def _wrapped(query: CallbackQuery, state: FSMContext):
 
-        try:
-            if not cache.is_allowed(query.from_user.id):
-                await query.message.answer("Доступ запрещён.")
-                logger.warning(
-                    f"Unauthorized callback attempt by {query.from_user.id}"
-                )
-                await query.answer()
-                return
-
-        except Exception:
-            logger.exception("Error checking access")
-            await query.message.answer(
-                "Ошибка проверки доступа. Попробуйте позже."
-            )
+        if not cache.is_allowed(query.from_user.id):
+            await query.message.answer("Доступ запрещён.")
             await query.answer()
             return
 
         await all_callbacks(
-            query=query,
+            query,
             sheets=sheets,
             cache=cache,
             state=state,
