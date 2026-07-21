@@ -109,7 +109,7 @@ def register_search_handlers(dp, cache):
 
     async def wrapped(message: Message):
         if not cache.is_allowed(message.from_user.id):
-            await message.answer("⛔ Доступ запрещён, запроси у админа доступ.")
+            await message.answer("⛔ Доступ запрещён, запроси у админа.")
             return
 
         await search_handler(message, cache)
